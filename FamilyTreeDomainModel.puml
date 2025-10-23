@@ -1,0 +1,101 @@
+@startuml
+title Family Tree - Core Domain Model
+
+class FamilyTree {
+  - persons: Set<Person>
+  - unions: Set<Union>
+  - parentChildLinks: Set<ParentChildLink>
+  --
+  + addPerson(person: Person): void
+  + addUnion(union: Union): void
+  + addParentChildLink(link: ParentChildLink): void
+  + getAncestors(person: Person, maxDepth: int = -1): Set<Person>
+  + getDescendants(person: Person, maxDepth: int = -1): Set<Person>
+  + getSiblings(person: Person): Set<Person>
+  + findPersonById(id: UUID): Person
+}
+
+enum Sex {
+  MALE
+  FEMALE
+  INTERSEX
+  UNKNOWN
+}
+
+enum UnionType {
+  MARRIAGE
+  CIVIL_PARTNERSHIP
+  DOMESTIC_PARTNERSHIP
+  CUSTOM
+}
+
+class Person {
+  + id: UUID
+  + givenName: String
+  + familyName: String
+  + middleNames: String [0..1]
+  + sex: Sex
+  + birthDate: LocalDate [0..1]
+  + deathDate: LocalDate [0..1]
+  + birthPlace: String [0..1]
+  + notes: String [0..1]
+  --
+  + getFullName(): String
+  + isDeceased(): boolean
+}
+
+class Union {
+  + id: UUID
+  + type: UnionType
+  + partnerA: Person
+  + partnerB: Person
+  + startDate: LocalDate [0..1]
+  + endDate: LocalDate [0..1]
+  + location: String [0..1]
+  + notes: String [0..1]
+  --
+  + isActive(on: LocalDate = LocalDate.now()): boolean
+}
+
+class ParentChildLink {
+  + id: UUID
+  + parent: Person
+  + child: Person
+  + isAdoptive: boolean
+  + isBiological: boolean
+  + isGuardian: boolean
+  + notes: String [0..1]
+}
+
+' Aggregation/composition and multiplicities
+FamilyTree "1" o-- "0..*" Person : manages
+FamilyTree "1" o-- "0..*" Union : manages
+FamilyTree "1" o-- "0..*" ParentChildLink : manages
+
+' Union connects two persons
+Union "1" --> "1" Person : partnerA
+Union "1" --> "1" Person : partnerB
+
+' Parent-child links
+ParentChildLink "1" --> "1" Person : parent
+ParentChildLink "1" --> "1" Person : child
+
+' Useful derived associations (not stored directly)
+Person "0..*" ..> "0..*" Person : siblings (derived)
+Person "0..*" ..> "0..*" Person : ancestors/descendants (derived)
+
+note right of ParentChildLink
+  A link describes the nature of parentage:
+  - isBiological, isAdoptive, isGuardian can co-exist
+  depending on data certainty.
+end note
+
+note bottom of FamilyTree
+  FamilyTree is the aggregate root:
+  - Ensures no cycles in ancestry
+  - Validates parent-child links
+  - Validates union participants
+  - Provides traversal utilities
+end note
+
+@enduml
